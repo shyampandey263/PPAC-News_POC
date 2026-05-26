@@ -13,10 +13,13 @@ from dotenv import load_dotenv
 from rag_engine import search_similar
 from ai_summarizer import summarize_news
 
+# =========================================================
+# ✅ LOAD ENV VARIABLES
+# =========================================================
+
 load_dotenv()
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
-
 
 # =========================================================
 # ✅ START COMMAND
@@ -25,9 +28,9 @@ TOKEN = os.getenv("TELEGRAM_TOKEN")
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
-        "🛢️ PPAC Petroleum Intelligence Bot Ready.\n\nAsk any petroleum or energy-related question."
+        "🛢️ PPAC Petroleum Intelligence Bot Ready.\n\n"
+        "Ask any petroleum or energy-related question."
     )
-
 
 # =========================================================
 # ✅ ASK HANDLER
@@ -37,7 +40,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     question = update.message.text
 
-    await update.message.reply_text("🔍 Analyzing petroleum intelligence...")
+    await update.message.reply_text(
+        "🔍 Analyzing petroleum intelligence..."
+    )
 
     try:
 
@@ -50,7 +55,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not results:
 
             await update.message.reply_text(
-                "No relevant intelligence found."
+                "❌ No relevant intelligence found."
             )
 
             return
@@ -79,7 +84,7 @@ Question:
 """
 
         # =================================================
-        # ✅ AI ANSWER
+        # ✅ AI SUMMARY
         # =================================================
 
         answer = summarize_news(prompt)
@@ -96,19 +101,36 @@ Question:
             f"❌ Error: {str(e)}"
         )
 
+# =========================================================
+# ✅ MAIN APPLICATION
+# =========================================================
+
+def main():
+
+    if not TOKEN:
+        print("❌ TELEGRAM_TOKEN not found in .env file")
+        return
+
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    # Start command
+    app.add_handler(CommandHandler("start", start))
+
+    # Message handler
+    app.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            handle_message
+        )
+    )
+
+    print("✅ Telegram AI Bot Running...")
+
+    app.run_polling()
 
 # =========================================================
-# ✅ MAIN
+# ✅ RUN BOT
 # =========================================================
 
-app = ApplicationBuilder().token(TOKEN).build()
-
-app.add_handler(CommandHandler("start", start))
-
-app.add_handler(
-    MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
-)
-
-print("✅ Telegram AI Bot Running...")
-
-app.run_polling()
+if __name__ == "__main__":
+    main()

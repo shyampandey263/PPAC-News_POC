@@ -8,89 +8,93 @@ from database import save_news
 import os
 from dotenv import load_dotenv
 from telegram import Bot
+import logging
 
 load_dotenv()
+
+# ✅ Logging setup
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # ✅ Telegram Config
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
+if not TOKEN or not CHAT_ID:
+    raise ValueError("❌ Missing TELEGRAM_TOKEN or CHAT_ID in .env")
+
 bot = Bot(token=TOKEN)
 
 # ✅ Category keywords
 CATEGORIES = {
-    "Crude": ["crude", "oil", "brent", "opec"],
-    "Petroleum": ["petrol", "diesel", "refinery"],
-    "Gas": ["lng", "gas", "lpg"],
+    "Crude": ["crude", "oil", "brent", "opec", "wti"],
+    "Petroleum": ["petrol", "diesel", "refinery", "petroleum", "ppac"],
+    "Gas": ["lng", "gas", "lpg", "natural gas"],
 }
 
+# ✅ Track sent URLs to avoid duplicates
+sent_urls = set()
 
 # ✅ Detect Category
 def detect_category(title):
-
     title_lower = title.lower()
-
     for category, keywords in CATEGORIES.items():
-
         for keyword in keywords:
-
             if keyword in title_lower:
                 return category
-
     return "General"
-
 
 # ✅ Async Send Function
 async def send_to_telegram(message):
-
     try:
-
-        # Telegram safe limit
         if len(message) > 3500:
             message = message[:3500] + "..."
-
         await bot.send_message(
             chat_id=CHAT_ID,
-            text=message
+            text=message,
+            parse_mode="HTML"
         )
-
-        print("✅ Telegram message sent")
-
+        logger.info("✅ Telegram message sent")
     except Exception as e:
-
-        print("❌ Telegram Error:", e)
-
+        logger.error(f"❌ Telegram Error: {e}")
 
 # ✅ Main News Processing
 async def process_news():
-
-    print("🔄 Fetching & processing news...")
-
-    news_list = fetch_news()
-
-    if not news_list:
-
-        print("⚠️ No news fetched")
-
+    logger.info("🔄 Fetching & processing news...")
+    
+    try:
+        news_list = fetch_news()
+    except Exception as e:
+        logger.error(f"❌ News fetch failed: {e}")
         return
 
+    if not news_list:
+        logger.warning("⚠️ No news fetched")
+        return
+
+    new_count = 0
+
     for article in news_list[:5]:
-
         try:
-
             title = article.get("title", "")
             url = article.get("url", "")
 
+            # ✅ Skip already sent news
+            if url in sent_urls:
+                logger.info(f"⏭️ Skipping duplicate: {title}")
+                continue
+
             # ✅ AI Summary
             summary = summarize_news(title)
-
-            # ✅ Shorten summary
             summary = summary[:300]
 
             # ✅ Detect category
             category = detect_category(title)
 
-            # ✅ Save DB
+            # ✅ Save to DB
             save_news(
                 title=title,
                 summary=summary,
@@ -98,52 +102,46 @@ async def process_news():
                 url=url
             )
 
+            # ✅ Mark as sent
+            sent_urls.add(url)
+
             # ✅ Telegram Message
             message = f"""
-🛢️ PPAC Petroleum Intelligence
+🛢️ <b>PPAC Petroleum Intelligence</b>
 
-📌 Category: {category}
+📌 <b>Category:</b> {category}
 
-📰 {title}
+📰 <b>{title}</b>
 
-🤖 AI Summary:
+🤖 <b>AI Summary:</b>
 {summary}
 
 🔗 {url}
 """
-
-            # ✅ Send Telegram
             await send_to_telegram(message)
+            logger.info(f"✅ Sent: {category} — {title[:50]}")
+            new_count += 1
 
-            print(f"✅ Sent: {category}")
-
-            # small delay
             await asyncio.sleep(2)
 
         except Exception as e:
+            logger.error(f"❌ Processing Error: {e}")
 
-            print("❌ Processing Error:", e)
-
+    logger.info(f"✅ Done. {new_count} new articles sent.")
 
 # ✅ Scheduler Wrapper
 def run_async_job():
-
     asyncio.run(process_news())
-
 
 # ✅ Schedule every 5 minutes
 schedule.every(5).minutes.do(run_async_job)
 
-print("✅ Scheduler Started...")
-
+logger.info("✅ Scheduler Started...")
 
 # ✅ Run once immediately
 run_async_job()
 
-
 # ✅ Infinite loop
 while True:
-
     schedule.run_pending()
-
     time.sleep(30)
