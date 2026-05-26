@@ -128,11 +128,11 @@ def run_async_job():
     asyncio.run(process_news())
 
 # ✅ 10:00 AM IST = 04:30 UTC
-# ✅ 01:00 PM IST = 07:30 UTC
+# ✅ 03:15 PM IST = 09:45 UTC
 schedule.every().day.at("04:30").do(run_async_job)
-schedule.every().day.at("07:30").do(run_async_job)
+schedule.every().day.at("09:45").do(run_async_job)
 
-logger.info("✅ Scheduler Started — News at 10:00 AM & 1:00 PM IST")
+logger.info("✅ Scheduler Started — News at 10:00 AM & 3:15 PM IST")
 logger.info("⏳ Waiting for scheduled time...")
 
 # ✅ Infinite loop
