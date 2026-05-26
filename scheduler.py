@@ -84,7 +84,7 @@ async def process_news():
             # ✅ Skip already sent news
             if url in sent_urls:
                 logger.info(f"⏭️ Skipping duplicate: {title}")
-                return
+                continue  # ✅ Fixed: was 'return', now 'continue'
 
             # ✅ AI Summary
             summary = summarize_news(title)
@@ -104,9 +104,8 @@ async def process_news():
             # ✅ Mark as sent
             sent_urls.add(url)
 
-            # ✅ Telegram Message
-            message = f"""
-🛢️ <b>PPAC Petroleum Intelligence</b>
+            # ✅ Telegram Message with clickable link
+            message = f"""🛢️ <b>PPAC Petroleum Intelligence</b>
 
 📌 <b>Category:</b> {category}
 
@@ -115,8 +114,8 @@ async def process_news():
 🤖 <b>AI Summary:</b>
 {summary}
 
-🔗 {url}
-"""
+🔗 <a href="{url}">Read Full Article</a>"""
+
             await send_to_telegram(message)
             logger.info(f"✅ Sent: {category} — {title[:50]}")
 
@@ -125,14 +124,20 @@ async def process_news():
 
 # ✅ Scheduler Wrapper
 def run_async_job():
-    asyncio.run(process_news())
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(process_news())
+        loop.close()
+    except Exception as e:
+        logger.error(f"❌ Job runner failed: {e}")
 
 # ✅ 10:00 AM IST = 04:30 UTC
-# ✅ 03:15 PM IST = 09:45 UTC
+# ✅ 04:45 PM IST = 11:15 UTC  ← updated
 schedule.every().day.at("04:30").do(run_async_job)
-schedule.every().day.at("09:45").do(run_async_job)
+schedule.every().day.at("11:15").do(run_async_job)  # ← changed from 09:45 to 11:15
 
-logger.info("✅ Scheduler Started — News at 10:00 AM & 3:15 PM IST")
+logger.info("✅ Scheduler Started — News at 10:00 AM & 4:45 PM IST")
 logger.info("⏳ Waiting for scheduled time...")
 
 # ✅ Infinite loop
