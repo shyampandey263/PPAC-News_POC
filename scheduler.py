@@ -61,10 +61,10 @@ async def send_to_telegram(message):
     except Exception as e:
         logger.error(f"❌ Telegram Error: {e}")
 
-# ✅ Main News Processing
+# ✅ Main News Processing — ONLY 1 article per run
 async def process_news():
     logger.info("🔄 Fetching & processing news...")
-    
+
     try:
         news_list = fetch_news()
     except Exception as e:
@@ -75,9 +75,8 @@ async def process_news():
         logger.warning("⚠️ No news fetched")
         return
 
-    new_count = 0
-
-    for article in news_list[:5]:
+    # ✅ Only 1 article per scheduled run
+    for article in news_list[:1]:
         try:
             title = article.get("title", "")
             url = article.get("url", "")
@@ -85,7 +84,7 @@ async def process_news():
             # ✅ Skip already sent news
             if url in sent_urls:
                 logger.info(f"⏭️ Skipping duplicate: {title}")
-                continue
+                return
 
             # ✅ AI Summary
             summary = summarize_news(title)
@@ -120,28 +119,23 @@ async def process_news():
 """
             await send_to_telegram(message)
             logger.info(f"✅ Sent: {category} — {title[:50]}")
-            new_count += 1
-
-            await asyncio.sleep(2)
 
         except Exception as e:
             logger.error(f"❌ Processing Error: {e}")
-
-    logger.info(f"✅ Done. {new_count} new articles sent.")
 
 # ✅ Scheduler Wrapper
 def run_async_job():
     asyncio.run(process_news())
 
-# ✅ Schedule every 5 minutes
-schedule.every(5).minutes.do(run_async_job)
+# ✅ Schedule at 10:00 AM IST = 04:30 UTC
+# ✅ Schedule at 03:00 PM IST = 09:30 UTC
+schedule.every().day.at("04:30").do(run_async_job)
+schedule.every().day.at("09:30").do(run_async_job)
 
-logger.info("✅ Scheduler Started...")
-
-# ✅ Run once immediately
-run_async_job()
+logger.info("✅ Scheduler Started — News will be sent at 10:00 AM & 3:00 PM IST")
+logger.info("⏳ Waiting for scheduled time...")
 
 # ✅ Infinite loop
 while True:
     schedule.run_pending()
-    time.sleep(30)
+    time.sleep(60)
