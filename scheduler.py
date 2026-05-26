@@ -142,11 +142,11 @@ def run_async_job():
         logger.error(f"❌ Job runner failed: {e}")
 
 # ✅ 10:00 AM IST = 04:30 UTC
-# ✅ 05:10 PM IST = 11:40 UTC
+# ✅ 05:20 PM IST = 11:50 UTC
 schedule.every().day.at("04:30").do(run_async_job)
-schedule.every().day.at("11:40").do(run_async_job)
+schedule.every().day.at("11:50").do(run_async_job)
 
-logger.info("✅ Scheduler Started — News at 10:00 AM & 5:10 PM IST")
+logger.info("✅ Scheduler Started — News at 10:00 AM & 5:20 PM IST")
 logger.info("⏳ Waiting for scheduled time...")
 
 # ✅ Infinite loop with heartbeat
