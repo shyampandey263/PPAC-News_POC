@@ -1,7 +1,6 @@
 import schedule
 import time
 import asyncio
-import requests
 from news_fetcher import fetch_news
 from ai_summarizer import summarize_news
 from database import save_news
@@ -61,7 +60,7 @@ async def send_to_telegram(message):
     except Exception as e:
         logger.error(f"❌ Telegram Error: {e}")
 
-# ✅ Main News Processing — ONLY 1 article per run
+# ✅ Main News Processing
 async def process_news():
     logger.info("🔄 Fetching & processing news...")
 
@@ -79,12 +78,21 @@ async def process_news():
     for article in news_list[:1]:
         try:
             title = article.get("title", "")
+
+            # ✅ GNews always returns real URL
             url = article.get("url", "")
+
+            logger.info(f"🔍 Title: {title[:60]}")
+            logger.info(f"🔗 URL: {url}")
+
+            if not url:
+                logger.warning("⚠️ No URL found, skipping")
+                continue
 
             # ✅ Skip already sent news
             if url in sent_urls:
                 logger.info(f"⏭️ Skipping duplicate: {title}")
-                continue  # ✅ Fixed: was 'return', now 'continue'
+                continue
 
             # ✅ AI Summary
             summary = summarize_news(title)
@@ -104,7 +112,7 @@ async def process_news():
             # ✅ Mark as sent
             sent_urls.add(url)
 
-            # ✅ Telegram Message with clickable link
+            # ✅ Telegram Message
             message = f"""🛢️ <b>PPAC Petroleum Intelligence</b>
 
 📌 <b>Category:</b> {category}
@@ -129,18 +137,23 @@ def run_async_job():
         asyncio.set_event_loop(loop)
         loop.run_until_complete(process_news())
         loop.close()
+        logger.info("✅ Job completed successfully")
     except Exception as e:
         logger.error(f"❌ Job runner failed: {e}")
 
 # ✅ 10:00 AM IST = 04:30 UTC
-# ✅ 04:45 PM IST = 11:15 UTC  ← updated
+# ✅ 05:10 PM IST = 11:40 UTC
 schedule.every().day.at("04:30").do(run_async_job)
-schedule.every().day.at("11:15").do(run_async_job)  # ← changed from 09:45 to 11:15
+schedule.every().day.at("11:40").do(run_async_job)
 
-logger.info("✅ Scheduler Started — News at 10:00 AM & 4:45 PM IST")
+logger.info("✅ Scheduler Started — News at 10:00 AM & 5:10 PM IST")
 logger.info("⏳ Waiting for scheduled time...")
 
-# ✅ Infinite loop
+# ✅ Infinite loop with heartbeat
+tick = 0
 while True:
     schedule.run_pending()
+    tick += 1
+    if tick % 5 == 0:
+        logger.info(f"💓 Scheduler alive | Jobs: {len(schedule.jobs)}")
     time.sleep(60)
